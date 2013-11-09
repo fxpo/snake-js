@@ -22,9 +22,14 @@
 </head>
 <script>
     function $(id){return document.getElementById(id);}
-    function Snake(table_name){
+    
+
+    function Snake(table_name, snake_type){
+
         this.tbl = null;
         this.table_name = table_name;
+        this.matrix = [];
+        this.snake_type = snake_type;
         /*
         * 	snake body
         */
@@ -34,13 +39,13 @@
 
         this.timer = null;
 
-        this.speed = 300;
+        this.speed = 100;
 
         this.paused = true;
 
-        this.rowCount = 20;
+        this.rowCount = 30;
 
-        this.colCount = 20;
+        this.colCount = 30;
 
         Snake.prototype.init = function(){
 
@@ -56,10 +61,10 @@
 
             for(var row=0;row<this.rowCount;row++){
                 var tr=this.tbl.insertRow(-1);
-                
+                this.matrix[row] = [];
                 for(var col=0;col<this.colCount;col++) {
                     var td=tr.insertCell(-1);
-                   
+                    this.matrix[row][col] = 0;
                 }
             }
 
@@ -67,7 +72,7 @@
             y = Math.floor(Math.random()*this.rowCount);
             if(!this.isCellFilled(x,y)){
                     this.tbl.rows[y].cells[x].style.backgroundColor = 'red';
-                     
+                    this.matrix[x][y] = 2;
             }
 
             while(true){
@@ -77,6 +82,7 @@
                     this.tbl.rows[y].cells[x].style.backgroundColor = "black";
                     
                     this.body.push({x:x,y:y,color:'black'});
+                    this.matrix[x][y] = 1;
                     break;
                 }
             }
@@ -85,7 +91,7 @@
 
         Snake.prototype.move = function(){
             var that = this;
-            this.timer = setInterval(function(){
+                this.timer = setInterval(function(){
                 that.erase();
                 that.moveOneStep();
                 that.paint();
@@ -93,6 +99,7 @@
         };
 
         Snake.prototype.moveOneStep = function(){
+            
             if(this.checkNextStep()==-1){
                 clearInterval(this.timer);
                 alert("Game over!/nPress Restart to continue.");
@@ -111,14 +118,16 @@
             //window.status = this.toString();
             var point = this.getNextPos();
 
-            var color = this.body[0].color;
+            //var color = this.body[0].color;
 
-            for(var i=0; i<this.body.length-1; i++){
-            		this.body[i].color = this.body[i+1].color;
-            }
+            // for(var i=0; i<this.body.length-1; i++){
+            // 		this.body[i].color = this.body[i+1].color;
+            // }
 
-            this.body.pop();
+            var prev = this.body.pop();
+            this.matrix[prev.x][prev.y] = 0;
             this.body.unshift({x:point.x,y:point.y,color:"black"});
+            this.matrix[point.x][point.y] = 1;
             //window.status = this.toString();
         };
 
@@ -130,7 +139,9 @@
             var x = this.body[0].x;
             var y = this.body[0].y;
             var color = this.body[0].color;
-
+            if (this.snake_type == "AI"){
+                this.direction = this.getNextDirection();
+            }
             if(this.direction==0){
                 y--;
             }
@@ -148,6 +159,56 @@
             }
 
             return {x:x,y:y};
+        };
+
+        Snake.prototype.getNextDirection = function() {
+            var head = this.body[0];
+            var Queue = [];
+            Queue.push({x:head.x, y:head.y, direction:this.direction});
+            while(Queue.length > 0){
+                current = Queue.shift();
+                if(this.matrix[current.x][current.y] === 2){
+                    return current.direction; 
+                    break;
+                }
+                this.matrix[current.x][current.y] = -1;
+                neighbors = this.getValidNeighbors(current);
+                for(var i = 0; i < neighbors.length; i++) {
+                    Queue.push(neighbors[i]);
+
+                }
+            }
+            
+            
+        }
+
+        Snake.prototype.getValidNeighbors = function(position) {
+            var neighbors = [];
+            if (this.isValidPosition({x:position.x+1, y:position.y})){
+                if(Math.abs(this.matrix[position.x+1][position.y]) != 1) {
+                    neighbors.push({x:position.x+1, y:position.y, direction:1});
+                }
+            }
+            if (this.isValidPosition({x:position.x-1, y:position.y})){
+                if(Math.abs(this.matrix[position.x-1][position.y]) != 1) {
+                    neighbors.push({x:position.x-1, y:position.y, direction:3});
+                }
+            }
+            if (this.isValidPosition({x:position.x, y:position.y+1})){
+                if(Math.abs(this.matrix[position.x][position.y+1]) != 1) {
+                    neighbors.push({x:position.x, y:position.y+1, direction:0});
+                }
+            }
+             if (this.isValidPosition({x:position.x, y:position.y-1})){
+                if(Math.abs(this.matrix[position.x][position.y-1]) != 1) {
+                    neighbors.push({x:position.x, y:position.y-1, direction:2});
+                }
+            }
+            return neighbors;
+        };
+
+        Snake.prototype.isValidPosition = function(position){
+            return (position.x >= 0 && position.x < this.rowCount && position.y >= 0 && position.y < this.colCount);
         };
 
         Snake.prototype.checkNextStep = function(){
@@ -237,14 +298,15 @@
 
             if(!this.isCellFilled(x,y)){
                 this.tbl.rows[y].cells[x].style.backgroundColor = "red";
+                this.matrix[x][y] = 2;
             }
         };
     };
 </script>
 <script>
     function initialize(){
-        Player1 = new Snake('snake_left');
-        Player2 = new Snake('snake_right');
+        Player1 = new Snake('snake_left', 'human');
+        Player2 = new Snake('snake_right', 'AI');
 
         Player1.init();
         Player2.init();
